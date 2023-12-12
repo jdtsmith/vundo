@@ -14,7 +14,7 @@ should pop up. To move around, type:
   a   to go back to the last branching point
   e   to go forward to the end/tip of the branch
   l   to go to the last saved node
-  r   to go to the next saved node  
+  r   to go to the next saved node
 
   q   to quit, you can also type C-g
 
