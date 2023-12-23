@@ -124,36 +124,36 @@ Displays in a separate diff buffer with name based on
 the original buffer name."
   (interactive)
   (let* ((orig vundo--orig-buffer)
-	 (oname (buffer-name orig))
-	 (current (vundo--current-node vundo--prev-mod-list))
-	 (marked (or vundo-diff--marked-node (vundo-m-parent current)))
-	 (swapped (> (vundo-m-idx marked) (vundo-m-idx current)))
-	 mrkbuf)
+         (oname (buffer-name orig))
+         (current (vundo--current-node vundo--prev-mod-list))
+         (marked (or vundo-diff--marked-node (vundo-m-parent current)))
+         (swapped (> (vundo-m-idx marked) (vundo-m-idx current)))
+         mrkbuf)
     (if (or (not current) (not marked) (eq current marked))
-	(message "vundo diff not available.")
+        (message "vundo diff not available.")
       (setq mrkbuf (get-buffer-create
-		    (make-temp-name (concat oname "-vundo-diff-marked"))))
+                    (make-temp-name (concat oname "-vundo-diff-marked"))))
       (unwind-protect
-	  (progn
+          (progn
             (vundo--check-for-command
-	     (vundo--move-to-node current marked orig vundo--prev-mod-list)
-	     (with-current-buffer mrkbuf
-	       (insert-buffer-substring-no-properties orig))
-	     (vundo--refresh-buffer orig (current-buffer) 'incremental)
-	     (vundo--move-to-node marked current orig vundo--prev-mod-list)
-	     (vundo--trim-undo-list orig current vundo--prev-mod-list)
-	     (vundo--refresh-buffer orig (current-buffer) 'incremental))
-	    (let* ((a (if swapped current marked))
-	           (b (if swapped marked current))
-		   (abuf (if swapped orig mrkbuf))
-		   (bbuf (if swapped mrkbuf orig))
-		   (dbuf (diff-no-select
-			  abuf bbuf nil t
-			  (get-buffer-create
-			   (concat "*vundo-diff-" oname "*")))))
-	      (vundo-diff--cleanup-diff-buffer oname dbuf current a b)
-	      (display-buffer dbuf)))
-	(kill-buffer mrkbuf)))))
+             (vundo--move-to-node current marked orig vundo--prev-mod-list)
+             (with-current-buffer mrkbuf
+               (insert-buffer-substring-no-properties orig))
+             (vundo--refresh-buffer orig (current-buffer) 'incremental)
+             (vundo--move-to-node marked current orig vundo--prev-mod-list)
+             (vundo--trim-undo-list orig current vundo--prev-mod-list)
+             (vundo--refresh-buffer orig (current-buffer) 'incremental))
+            (let* ((a (if swapped current marked))
+                   (b (if swapped marked current))
+                   (abuf (if swapped orig mrkbuf))
+                   (bbuf (if swapped mrkbuf orig))
+                   (dbuf (diff-no-select
+                          abuf bbuf nil t
+                          (get-buffer-create
+                           (concat "*vundo-diff-" oname "*")))))
+              (vundo-diff--cleanup-diff-buffer oname dbuf current a b)
+              (display-buffer dbuf)))
+        (kill-buffer mrkbuf)))))
 
 (defconst vundo-diff-font-lock-keywords
   `((,(rx bol (or "---" "+++") (* nonl) "[mod " (group (+ num)) ?\]
