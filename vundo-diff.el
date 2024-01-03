@@ -59,28 +59,30 @@ CURRENT node."
                        collect
                        (list (format "[%d]" idx)
                              (format "<%s> [mod %d] (%s)" orig-name idx stat)
-                             (when (consp ts) (format-time-string "%F %r" ts))))))
+                             (when (consp ts) (format-time-string "%F %r" ts)))))
+        lim)
     (with-current-buffer buf
       (vundo-diff-mode)
       (goto-char (point-min))
-      (insert (concat (propertize "vundo-diff: " 'font-lock-face 'diff-header)
-                      (propertize  orig-name 'font-lock-face
-                                   '(diff-file-header diff-header))
-                      "\n"))
+      (insert (propertize "vundo-diff: " 'font-lock-face 'diff-header)
+              (propertize  orig-name 'font-lock-face
+                           '(diff-file-header diff-header))
+              "\n")
       (let* ((change-files
               (cl-loop for (name fullname ts) in info
                        for pat in '("---" "+++")
                        if (re-search-forward
-                           (rx-to-string `(and bol ,pat (+ space)
-                                               (group (group (+ (not ?\t)))
-                                                      (* any))
+                           (rx-to-string `(and bol ,pat (+ blank)
+                                               (group (group (+ (not (any ?\n ?\t))))
+                                                      (* nonl))
                                                eol))
                            nil t)
                        collect (cons (match-string-no-properties 2) name)
-                       and do (replace-match
-                               (if ts (concat fullname "\t" ts) fullname)
-                               t t nil 1)))
-             (lim (point)))
+                       and do
+                       (unless lim (setq lim (match-beginning 0)))
+                       (replace-match
+                        (if ts (concat fullname "\t" ts) fullname)
+                        t t nil 1))))
         (when (eq (length change-files) 2)
           (goto-char (point-min))
           (dolist (c change-files) ; change the file names in the diff
@@ -127,10 +129,11 @@ the original buffer name."
          (oname (buffer-name orig))
          (current (vundo--current-node vundo--prev-mod-list))
          (marked (or vundo-diff--marked-node (vundo-m-parent current)))
-         (swapped (> (vundo-m-idx marked) (vundo-m-idx current)))
+         swapped
          mrkbuf)
     (if (or (not current) (not marked) (eq current marked))
         (message "vundo diff not available.")
+      (setq swapped (> (vundo-m-idx marked) (vundo-m-idx current)))
       (setq mrkbuf (get-buffer-create
                     (make-temp-name (concat oname "-vundo-diff-marked"))))
       (unwind-protect
@@ -143,7 +146,8 @@ the original buffer name."
              (vundo--move-to-node marked current orig vundo--prev-mod-list)
              (vundo--trim-undo-list orig current vundo--prev-mod-list)
              (vundo--refresh-buffer orig (current-buffer) 'incremental))
-            (let* ((a (if swapped current marked))
+            (let* ((diff-use-labels nil) ; We let our cleanup handle this.
+                   (a (if swapped current marked))
                    (b (if swapped marked current))
                    (abuf (if swapped orig mrkbuf))
                    (bbuf (if swapped mrkbuf orig))
@@ -175,3 +179,7 @@ the original buffer name."
 (provide 'vundo-diff)
 
 ;;; vundo-diff.el ends here
+
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; End:

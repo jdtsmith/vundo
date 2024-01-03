@@ -1,11 +1,11 @@
 ;;; vundo.el --- Visual undo tree      -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2020 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2023 Free Software Foundation, Inc.
 ;;
 ;; Author: Yuan Fu <casouri@gmail.com>
 ;; Maintainer: Yuan Fu <casouri@gmail.com>
 ;; URL: https://github.com/casouri/vundo
-;; Version: 2.1.0
+;; Version: 2.2.0
 ;; Keywords: undo, text, editing
 ;; Package-Requires: ((emacs "28.1"))
 ;;
@@ -607,7 +607,7 @@ unmodified and NO-BUFFER is non-nil)."
 (defun vundo--next-line-at-column (col)
   "Move point to next line column COL."
   (unless (and (eq 0 (forward-line))
-               (not (eq (point) (point-max))))
+               (not (eobp)))
     (goto-char (point-max))
     (insert "\n"))
   (move-to-column col)
@@ -651,8 +651,7 @@ Translate according to `vundo-glyph-alist'."
              (stem-face (if only-child-p 'vundo-stem 'vundo-branch-stem)))
         ;; Go to parent.
         (if parent (goto-char (vundo-m-point parent)))
-        (let ((col (max 0 (1- (current-column))))
-              (room-for-another-rx
+        (let ((room-for-another-rx
                (rx-to-string
                 `(or (>= ,(if vundo-compact-display 3 4) ?\s) eol))))
           (if (null parent)
@@ -664,7 +663,7 @@ Translate according to `vundo-glyph-alist'."
               ;;             |     child to 1 but is blocked
               ;;             +--4  by that plus sign.
               (while (not (looking-at room-for-another-rx))
-                (vundo--next-line-at-column col)
+                (vundo--next-line-at-column (max 0 (1- (current-column))))
                 ;; When we go down, we could encounter space, EOL, │,
                 ;; ├, or └. Space and EOL should be replaced by │, ├
                 ;; and └ should be replaced by ├.
@@ -1081,7 +1080,9 @@ Basically, return the latest non-undo modification in MOD-LIST."
   "Move from CURRENT node to DEST node by undoing in ORIG-BUFFER.
 ORIG-BUFFER must be at CURRENT state. MOD-LIST is the list you
 get from `vundo--mod-list-from'. You should refresh vundo buffer
-after calling this function.
+after calling this function. (You can call this function
+repeatedly before refreshing, but moving back-and-forth might not
+work, see docstring of ‘vundo--trim-undo-list’.)
 
 This function modifies the content of ORIG-BUFFER."
   (cl-assert (not (eq current dest)))
@@ -1162,7 +1163,15 @@ Because if we only trim once, `buffer-undo-list' either shrinks
 or expands. But if we trim multiple times after multiple
 movements, it could happen that the undo-list first
 shrinks (trimmed) then expands. In that situation we cannot use
-the INCREMENTAL option in `vundo--refresh-buffer' anymore."
+the INCREMENTAL option in `vundo--refresh-buffer' anymore.
+
+Also, if you move back-end-forth with ‘vundo--move-to-node’, it
+might not work: Suppose undo list is [1 2 3], mod-list is [1 2
+3], now we move back to 2, undo list becomes [1 2 3 2’], but
+before we refresh vundo buffer, mod-list will remain [1 2 3], so
+there’s no route from 2 to 3 (you can only move back). Once
+we refresh the buffer and mod-list is updated to [1 2 3 2’], we
+have a route from 3 to 2 (2’->3)."
   (let ((latest-buffer-state-idx
          ;; Among all the MODs that represents a unique buffer
          ;; state, we find the latest one. Because any node
@@ -1401,3 +1410,7 @@ TYPE is the type of buffer you want."
 (provide 'vundo)
 
 ;;; vundo.el ends here
+
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; End:
